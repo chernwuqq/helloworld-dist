@@ -1,13 +1,13 @@
-name: Openwrt Build Bot
+name: Openwrt SSR
 on:
-  push:
-    branches: master
-  schedule:
-  - cron: 0 20 * * 4
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   buildpkg:
-    name: Build Openwrt Package
+    name: Build ARM A53 SSR
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -17,25 +17,29 @@ jobs:
         - https://downloads.openwrt.org/snapshots/targets/qualcommax/ipq807x/openwrt-toolchain-qualcommax-ipq807x_gcc-13.3.0_musl.Linux-x86_64.tar.zst
         #- https://downloads.openwrt.org/releases/22.03.5/targets/x86/64/openwrt-sdk-22.03.5-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz
         #- https://downloads.openwrt.org/releases/22.03.5/targets/rockchip/armv8/openwrt-sdk-22.03.5-rockchip-armv8_gcc-11.2.0_musl.Linux-x86_64.tar.xz
+    
     steps:
     - uses: actions/checkout@master
     - name: Env for Openwrt SDK
       run: sudo apt install -y libev-dev libc-ares-dev libudns-dev libncurses-dev
+      
     - name: Download Openwrt SDK
       env:
         SDK_URL: ${{ matrix.SDK_URL }}
       run: |
         SDK_HOME=$(head -c -8 <<< $(basename $SDK_URL))
         wget $SDK_URL
-        tar xf $(basename $SDK_URL) -C ~/
+        tar --zstd -xvf $(basename $SDK_URL) -C ~/
         mv ~/$SDK_HOME ~/sdk
         cp key-build ~/sdk/
+        
     - name: Download Packages
       run: |
         cd ~/sdk
         echo 'src-git ssrp https://github.com/fw876/helloworld.git' >> feeds.conf.default 
         ./scripts/feeds update -a 
         ./scripts/feeds install -a -f -p ssrp
+        
     - name: Compile
       run: |
         cd ~/sdk
@@ -65,20 +69,33 @@ jobs:
         echo 'CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Tuic_Client=y' >> .config
         echo 'CONFIG_PACKAGE_luci-i18n-ssr-plus-zh-cn=m' >> .config
         make defconfig
+        
         # build packages
         make package/luci-app-ssr-plus/compile V=s
         make package/index
-    - name: Upload
-      env:
-        SDK_URL: ${{ matrix.SDK_URL }}
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        
+    - name: Prepare artifact
       run: |
-        TAG=$(sed -n 's/.*targets\/\(\w*\)\/\(\w*\)\/.*/packages\/\1\/\2/p' <<< $SDK_URL)
-        # Upload base only
-        cd ~/sdk/bin/packages/*/ssrp
-        git init
-        git config user.name "bot"
-        git config user.email "bot@github.com"
-        git add .
-        git commit -m "$TAG$(TZ='Asia/Shanghai' date +@%Y%m%d)"
-        git push --force --quiet "https://$GITHUB_TOKEN@github.com/zlwu/helloworld-dist.git" HEAD:$TAG
+        mkdir -p ./artifact/package
+        mkdir -p ./artifact/buildinfo
+        rm -rf $(find ./bin/targets/ -type d -name "packages")
+        cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
+        cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
+
+    - name: Upload buildinfo
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenWrt_buildinfo
+        path: ./artifact/buildinfo/
+
+    - name: Upload package
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenWrt_package
+        path: ./artifact/package/
+
+    - name: Upload firmware
+      uses: actions/upload-artifact@v3
+      with:
+        name: OpenWrt_firmware
+        path: ./bin/targets/
