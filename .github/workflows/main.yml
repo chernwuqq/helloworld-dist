@@ -18,6 +18,7 @@ jobs:
     
     steps:
     - uses: actions/checkout@master
+    
     - name: Env for Openwrt SDK
       run: sudo apt install -y libev-dev libc-ares-dev libudns-dev libncurses-dev
       
@@ -29,7 +30,6 @@ jobs:
         wget --quiet $SDK_URL
         tar --zstd -xf $(basename $SDK_URL) -C ~/
         mv ~/$SDK_HOME ~/sdk
-        cp key-build ~/sdk/
         
     - name: Download Packages
       run: |
@@ -76,25 +76,11 @@ jobs:
       run: |
         cd ~/sdk
         mkdir -p ./artifact/package
-        mkdir -p ./artifact/buildinfo
-        rm -rf $(find ./bin/targets/ -type d -name "packages")
-        cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
-        #cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
-
-    - name: Upload buildinfo
-      uses: actions/upload-artifact@v3
-      with:
-        name: OpenWrt_buildinfo
-        path: ./artifact/buildinfo/
+        cp ./bin/packages/aarch64_cortex-a53/ssrp/*.ipk ./artifact/package
 
     - name: Upload package
       uses: actions/upload-artifact@v3
       with:
-        name: OpenWrt_package
-        path: ./artifact/package/
+        name: luci-app-ssr-plus_package
+        path: ~/sdk/artifact/package/
 
-    - name: Upload firmware
-      uses: actions/upload-artifact@v3
-      with:
-        name: OpenWrt_firmware
-        path: ./bin/targets/
