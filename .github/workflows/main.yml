@@ -14,9 +14,7 @@ jobs:
       matrix:
         SDK_URL:
         - https://downloads.openwrt.org/snapshots/targets/qualcommax/ipq807x/openwrt-sdk-qualcommax-ipq807x_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-        - https://downloads.openwrt.org/snapshots/targets/qualcommax/ipq807x/openwrt-toolchain-qualcommax-ipq807x_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-        #- https://downloads.openwrt.org/releases/22.03.5/targets/x86/64/openwrt-sdk-22.03.5-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz
-        #- https://downloads.openwrt.org/releases/22.03.5/targets/rockchip/armv8/openwrt-sdk-22.03.5-rockchip-armv8_gcc-11.2.0_musl.Linux-x86_64.tar.xz
+        #- https://downloads.openwrt.org/snapshots/targets/qualcommax/ipq807x/openwrt-toolchain-qualcommax-ipq807x_gcc-13.3.0_musl.Linux-x86_64.tar.zst
     
     steps:
     - uses: actions/checkout@master
@@ -76,6 +74,7 @@ jobs:
         
     - name: Prepare artifact
       run: |
+        cd ~/sdk
         mkdir -p ./artifact/package
         mkdir -p ./artifact/buildinfo
         rm -rf $(find ./bin/targets/ -type d -name "packages")
